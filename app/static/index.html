@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GEO_RADIO</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass:      rgba(12, 15, 22, 0.15);
+            --glass-rim:  rgba(255, 255, 255, 0.10);
+            --glass-edge: rgba(255, 255, 255, 0.06);
+            --accent:     #ff4400;
+            --accent-dim: rgba(255, 68, 0, 0.30);
+            --cyan:       #00d9ff;
+            --fg:         #ced4df;
+            --dim:        #48525e;
+            --font:       'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; }
+
+        body {
+            background: #020308;
+            overflow: hidden;
+            color: var(--fg);
+            font-family: var(--font);
+            text-transform: uppercase;
+        }
+
+        #globe-container { width: 100vw; height: 100vh; }
+
+        /* ── GLASS PANEL BASE ── */
+        .panel {
+            position: absolute;
+            z-index: 100;
+            background: var(--glass);
+            backdrop-filter: blur(16px) saturate(180%) contrast(108%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%) contrast(108%);
+            border: 1px solid var(--glass-edge);
+            border-top: 1px solid var(--glass-rim);
+            border-radius: 2px;
+            box-shadow:
+                0 20px 40px -8px rgba(0, 0, 0, 0.75),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        /* ── BRAND BOX (top-left) ── */
+        #brand-box { top: 20px; left: 20px; width: 240px; }
+
+        .brand-logo {
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid var(--glass-edge);
+        }
+        .brand-logo h1 {
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -1px;
+            color: var(--fg);
+        }
+        .brand-logo h1 span { color: var(--accent); }
+
+        .brand-coords {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 18px;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--dim);
+            letter-spacing: 0.05em;
+        }
+
+        /* ── STATUS BOX (top-right) ── */
+        #status-box {
+            top: 20px; right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 9px 16px;
+        }
+
+        #scan-btn {
+            font-family: var(--font);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            color: var(--dim);
+            background: none;
+            border: 1px solid var(--glass-edge);
+            border-radius: 1px;
+            padding: 4px 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        #scan-btn:hover { color: var(--fg); border-color: rgba(255, 255, 255, 0.14); }
+        #scan-btn.active { color: var(--accent); border-color: var(--accent-dim); }
+
+        .v-sep { width: 1px; height: 14px; background: var(--glass-edge); flex-shrink: 0; }
+
+        #status-txt {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            color: var(--dim);
+            transition: color 0.3s;
+        }
+        #status-txt.live { color: var(--accent); }
+
+        .led {
+            width: 7px; height: 7px;
+            background: var(--dim);
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .led.active {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent), 0 0 3px var(--accent);
+        }
+
+        /* ── META BOX (bottom-left) ── */
+        #meta-box { bottom: 20px; left: 20px; width: 340px; display: none; }
+
+        .meta-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 16px 18px 0;
+        }
+        .meta-content { flex: 1; min-width: 0; }
+
+        .label {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--dim);
+            letter-spacing: 0.16em;
+            margin-bottom: 5px;
+        }
+
+        #st-name {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--fg);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .meta-row {
+            display: flex;
+            gap: 0;
+            padding: 0 18px 10px;
+            border-bottom: 1px solid var(--glass-edge);
+        }
+        .meta-cell {
+            flex: 1;
+        }
+        .meta-cell + .meta-cell {
+            padding-left: 16px;
+            border-left: 1px solid var(--glass-edge);
+        }
+
+        #st-country, #st-local-time {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--fg);
+        }
+
+        #st-tags {
+            padding: 8px 18px;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-bottom: 1px solid var(--glass-edge);
+        }
+
+        #star-btn {
+            font-size: 17px;
+            line-height: 1;
+            background: none;
+            border: none;
+            color: var(--dim);
+            cursor: pointer;
+            padding: 0 0 0 12px;
+            flex-shrink: 0;
+            transition: color 0.2s;
+            font-family: var(--font);
+        }
+        #star-btn:hover { color: var(--fg); }
+        #star-btn.active { color: var(--cyan); }
+
+        /* visualizer */
+        #visualizer-canvas {
+            display: block;
+            width: 100%;
+            height: 38px;
+        }
+
+        #play-btn {
+            display: block;
+            width: 100%;
+            padding: 13px 18px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--fg);
+            border: none;
+            border-top: 1px solid var(--glass-edge);
+            font-family: var(--font);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s, color 0.2s;
+        }
+        #play-btn:hover { background: var(--accent); color: #fff; }
+        #play-btn.playing { color: var(--accent); }
+
+        /* ── SEARCH BOX (bottom-right) ── */
+        #search-box {
+            bottom: 20px; right: 20px;
+            width: 270px;
+            padding: 14px 18px;
+        }
+
+        .search-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--dim);
+            margin-bottom: 9px;
+        }
+
+        #search-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--glass-edge);
+            color: var(--fg);
+            font-family: var(--font);
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+            padding-bottom: 5px;
+            letter-spacing: 0.04em;
+        }
+        #search-input::placeholder { color: var(--dim); }
+
+        /* ── PIN TOOLTIP ── */
+        #pin-tooltip {
+            position: fixed;
+            z-index: 200;
+            display: none;
+            pointer-events: none;
+            padding: 5px 10px;
+            font-family: var(--font);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            white-space: nowrap;
+            color: var(--fg);
+            background: var(--glass);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            border: 1px solid var(--glass-edge);
+            border-top: 1px solid var(--glass-rim);
+            border-radius: 2px;
+            box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+<div id="globe-container"></div>
+<div id="pin-tooltip"></div>
+
+<!-- BRAND -->
+<div class="panel" id="brand-box">
+    <div class="brand-logo">
+        <h1>GEO<span>_</span>RADIO</h1>
+    </div>
+    <div class="brand-coords">
+        <span id="lat">00.0000 N</span>
+        <span id="lng">00.0000 E</span>
+    </div>
+</div>
+
+<!-- STATUS -->
+<div class="panel" id="status-box">
+    <button id="scan-btn">SCAN</button>
+    <div class="v-sep"></div>
+    <span id="status-txt">STANDBY</span>
+    <div id="led" class="led"></div>
+</div>
+
+<!-- META -->
+<div class="panel" id="meta-box">
+    <div class="meta-head">
+        <div class="meta-content">
+            <div class="label">STATION IDENTITY</div>
+            <div id="st-name">--</div>
+        </div>
+        <button id="star-btn" title="Add to favorites">&#9734;</button>
+    </div>
+
+    <div class="meta-row">
+        <div class="meta-cell">
+            <div class="label">COUNTRY</div>
+            <div id="st-country">--</div>
+        </div>
+        <div class="meta-cell">
+            <div class="label">LOCAL TIME</div>
+            <div id="st-local-time">--:--</div>
+        </div>
+    </div>
+
+    <div id="st-tags">--</div>
+
+    <canvas id="visualizer-canvas"></canvas>
+
+    <button id="play-btn">INITIATE LINK</button>
+</div>
+
+<!-- SEARCH -->
+<div class="panel" id="search-box">
+    <div class="search-label">FREQUENCY SEARCH</div>
+    <input type="text" id="search-input" placeholder="station · country · tag" spellcheck="false">
+</div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
