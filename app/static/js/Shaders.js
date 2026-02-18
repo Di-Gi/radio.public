@@ -148,7 +148,7 @@ export const BackgroundMaterial = {
                 -0.80,  0.36, -0.48,
                 -0.60, -0.48,  0.64 
             );
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 3; ++i) {
                 v += a * snoise(x);
                 x = rot * x * 2.0; 
                 a *= 0.5;

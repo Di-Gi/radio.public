@@ -43,6 +43,9 @@ export class GlobeManager {
 
         // Rotation grace-period timer
         this._idleTimer = null;
+
+        // Pin refresh batching
+        this._refreshPending = false;
     }
 
     init() {
@@ -108,7 +111,7 @@ export class GlobeManager {
 
         // ── 3. SCENE ─────────────────────────────────────────────────────────
         const bgMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(1000, 64, 64),
+            new THREE.SphereGeometry(1000, 32, 32),
             this.bgMaterial
         );
         this.world.scene().add(bgMesh);
@@ -186,14 +189,12 @@ export class GlobeManager {
 
     setSelected(uuid) {
         this.selectedUuid = uuid;
-        this._refreshPoints();
-        this._updateRings();
+        this._scheduleRefresh();
     }
 
     setPlaying(uuid) {
         this.playingUuid = uuid;
-        this._refreshPoints();
-        this._updateRings();
+        this._scheduleRefresh();
     }
 
     updateData(data) {
@@ -234,10 +235,21 @@ export class GlobeManager {
 
     // Called after favorites toggle to recolour all pins
     refreshPointColors() {
-        this._refreshPoints();
+        this._scheduleRefresh();
     }
 
     // ── INTERNAL ─────────────────────────────────────────────────────────────
+
+    // Collapses multiple synchronous state changes into a single Globe.gl rebuild
+    _scheduleRefresh() {
+        if (this._refreshPending) return;
+        this._refreshPending = true;
+        queueMicrotask(() => {
+            this._refreshPending = false;
+            this._refreshPoints();
+            this._updateRings();
+        });
+    }
 
     // Re-feed pointsData to force Globe.gl to re-run the accessor functions
     _refreshPoints() {

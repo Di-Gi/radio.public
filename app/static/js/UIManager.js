@@ -29,25 +29,38 @@ export class UIManager {
     }
 
     _initListeners() {
-        // Coordinates on mouse move
+        // Coordinates on mouse move — rAF-gated to cap raycasting at one call per frame
+        this._pendingMouse = null;
+        this._mouseScheduled = false;
         document.addEventListener('mousemove', (e) => {
-            if (!this.globe?.world) return;
-            const coords = this.globe.getCoords(e.clientX, e.clientY);
-            if (coords) {
-                this.elLat.innerText = `${Math.abs(coords.lat).toFixed(4)} ${coords.lat >= 0 ? 'N' : 'S'}`;
-                this.elLng.innerText = `${Math.abs(coords.lng).toFixed(4)} ${coords.lng >= 0 ? 'E' : 'W'}`;
-            }
+            this._pendingMouse = { x: e.clientX, y: e.clientY };
+            if (this._mouseScheduled) return;
+            this._mouseScheduled = true;
+            requestAnimationFrame(() => {
+                this._mouseScheduled = false;
+                if (!this._pendingMouse || !this.globe?.world) return;
+                const coords = this.globe.getCoords(this._pendingMouse.x, this._pendingMouse.y);
+                this._pendingMouse = null;
+                if (coords) {
+                    this.elLat.innerText = `${Math.abs(coords.lat).toFixed(4)} ${coords.lat >= 0 ? 'N' : 'S'}`;
+                    this.elLng.innerText = `${Math.abs(coords.lng).toFixed(4)} ${coords.lng >= 0 ? 'E' : 'W'}`;
+                }
+            });
         });
 
-        // Search filtering
+        // Search filtering — debounced to avoid Globe.gl rebuild on every keystroke
+        let searchTimer = null;
         this.elSearch.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase();
-            const filtered = this.globe.stations.filter(s =>
-                (s.name    || '').toLowerCase().includes(val) ||
-                (s.tags    || '').toLowerCase().includes(val) ||
-                (s.country || '').toLowerCase().includes(val)
-            );
-            this.globe.world.pointsData(filtered);
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                const val = e.target.value.toLowerCase();
+                const filtered = this.globe.stations.filter(s =>
+                    (s.name    || '').toLowerCase().includes(val) ||
+                    (s.tags    || '').toLowerCase().includes(val) ||
+                    (s.country || '').toLowerCase().includes(val)
+                );
+                this.globe.world.pointsData(filtered);
+            }, 150);
         });
 
         // Star / favorite
@@ -89,6 +102,7 @@ export class UIManager {
         this.elLed.classList.toggle('active', isPlaying);
         this.elPlayBtn.innerText = isPlaying ? 'TERMINATE LINK' : 'INITIATE LINK';
         this.elPlayBtn.classList.toggle('playing', isPlaying);
+        if (isPlaying) this._resumeViz?.();
     }
 
     setScanAdvanceCallback(fn) {
@@ -130,43 +144,57 @@ export class UIManager {
     _startVisualizerLoop() {
         const canvas = this.elCanvas;
         const ctx = canvas.getContext('2d');
-        const dataArr = new Uint8Array(128); // reuse buffer
+        const dataArr = new Uint8Array(128);
+
+        // Cache dimensions — updated by ResizeObserver, not read per-frame
+        let w = canvas.offsetWidth  || 340;
+        let h = canvas.offsetHeight || 38;
+        canvas.width  = w;
+        canvas.height = h;
+
+        new ResizeObserver(([entry]) => {
+            w = Math.round(entry.contentRect.width)  || 340;
+            h = Math.round(entry.contentRect.height) || 38;
+            canvas.width  = w;
+            canvas.height = h;
+        }).observe(canvas);
+
+        let running = false;
 
         const draw = () => {
-            // Sync canvas resolution to CSS size
-            const w = canvas.offsetWidth  || 340;
-            const h = canvas.offsetHeight || 38;
-            if (canvas.width !== w)  canvas.width  = w;
-            if (canvas.height !== h) canvas.height = h;
-
-            ctx.clearRect(0, 0, w, h);
-
             if (this.audio.analyser) {
+                ctx.clearRect(0, 0, w, h);
                 this.audio.analyser.getByteFrequencyData(dataArr);
-
-                const barCount = dataArr.length;
-                const barW = w / barCount;
-
-                for (let i = 0; i < barCount; i++) {
+                const barW = w / dataArr.length;
+                for (let i = 0; i < dataArr.length; i++) {
                     const v = dataArr[i] / 255;
                     const barH = v * h;
                     ctx.fillStyle = `rgba(255, ${68 + Math.floor(v * 60)}, 0, ${0.35 + v * 0.65})`;
                     ctx.fillRect(i * barW, h - barH, barW - 1, barH);
                 }
+                requestAnimationFrame(draw);
             } else {
-                // Idle flat-line
+                // Draw flat-line once and stop — loop resumes via _resumeViz when audio starts
+                ctx.clearRect(0, 0, w, h);
                 ctx.strokeStyle = 'rgba(255, 68, 0, 0.18)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(0, h / 2);
                 ctx.lineTo(w, h / 2);
                 ctx.stroke();
+                running = false;
             }
-
-            requestAnimationFrame(draw);
         };
 
-        requestAnimationFrame(draw);
+        this._resumeViz = () => {
+            if (!running) {
+                running = true;
+                requestAnimationFrame(draw);
+            }
+        };
+
+        // Initial render
+        this._resumeViz();
     }
 
     // ── SCAN MODE ────────────────────────────────────────────────────────────
