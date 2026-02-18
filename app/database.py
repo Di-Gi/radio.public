@@ -1,7 +1,9 @@
 import sqlite_utils
 from typing import List, Dict
 
-DB_NAME = "stations.db"
+import os
+
+DB_NAME = os.getenv("DATABASE_PATH", "stations.db")
 
 def get_db():
     db = sqlite_utils.Database(DB_NAME)
