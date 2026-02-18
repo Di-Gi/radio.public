@@ -2,6 +2,7 @@ import { GlobeManager }   from './GlobeManager.js';
 import { AudioManager }   from './AudioManager.js';
 import { UIManager }      from './UIManager.js';
 import { StorageManager } from './StorageManager.js';
+import { SettingsManager } from './SettingsManager.js';
 
 // Application state
 let selectedStation = null;
@@ -25,7 +26,8 @@ const globeMgr = new GlobeManager(
     (uuid) => storageMgr.isFavorite(uuid)
 );
 
-const uiMgr = new UIManager(globeMgr, audioMgr, storageMgr);
+const settingsMgr = new SettingsManager(globeMgr);
+const uiMgr = new UIManager(globeMgr, audioMgr, storageMgr, settingsMgr);
 
 // Scan advance: random station, focus, play
 uiMgr.setScanAdvanceCallback(() => {
@@ -45,6 +47,7 @@ document.getElementById('play-btn').addEventListener('click', () => {
 
 // Init
 globeMgr.init();
+settingsMgr.apply(); // apply persisted settings now that scene is ready
 
 fetch('/api/stations')
     .then(res => res.json())

@@ -220,6 +220,17 @@ export class GlobeManager {
         this._scheduleRotationResume(20000);  // 20 s after station select
     }
 
+    setAutoRotate(enabled) {
+        if (!this.world) return;
+        clearTimeout(this._idleTimer);
+        this.world.controls().autoRotate = enabled;
+    }
+
+    setRotationSpeed(speed) {
+        if (!this.world) return;
+        this.world.controls().autoRotateSpeed = speed;
+    }
+
     // Called on empty-globe click — immediate resume, clears any pending timer.
     resumeRotation() {
         clearTimeout(this._idleTimer);

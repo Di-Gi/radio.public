@@ -50,7 +50,10 @@
         .brand-logo {
             padding: 14px 18px 12px;
             border-bottom: 1px solid var(--glass-edge);
+            cursor: pointer;
+            transition: opacity 0.15s;
         }
+        .brand-logo:hover { opacity: 0.75; }
         .brand-logo h1 {
             font-size: 34px;
             font-weight: 800;
@@ -251,6 +254,139 @@
         }
         #search-input::placeholder { color: var(--dim); }
 
+        /* ── MODAL ── */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 300;
+            background: rgba(2, 3, 8, 0.72);
+            align-items: center;
+            justify-content: center;
+        }
+        #modal-overlay.open { display: flex; }
+
+        #modal-box {
+            position: relative;
+            width: 460px;
+            max-width: calc(100vw - 40px);
+            background: rgba(7, 9, 16, 0.96);
+            backdrop-filter: blur(28px) saturate(180%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow:
+                0 40px 80px -16px rgba(0, 0, 0, 0.95),
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                inset 0 1px 0 rgba(255, 255, 255, 0.07);
+        }
+
+        #modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px 16px;
+            border-bottom: 1px solid var(--glass-edge);
+        }
+        #modal-header span {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--fg);
+        }
+        #modal-header span .accent { color: var(--accent); }
+
+        #modal-close {
+            background: none;
+            border: none;
+            color: var(--dim);
+            font-family: var(--font);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 4px 6px;
+            transition: color 0.15s;
+            line-height: 1;
+        }
+        #modal-close:hover { color: var(--fg); }
+
+        .modal-section {
+            padding: 16px 20px;
+        }
+        .modal-section + .modal-section {
+            border-top: 1px solid var(--glass-edge);
+        }
+
+        .modal-section .label { margin-bottom: 10px; }
+
+        .modal-about-text {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--dim);
+            line-height: 1.8;
+            letter-spacing: 0.04em;
+            text-transform: none;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 0;
+        }
+        .setting-row + .setting-row {
+            border-top: 1px solid var(--glass-edge);
+        }
+
+        .setting-name {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--fg);
+        }
+
+        /* Toggle switch */
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+        .toggle-wrap input[type="checkbox"] { display: none; }
+        .toggle-track {
+            width: 30px; height: 16px;
+            background: var(--dim);
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 10px; height: 10px;
+            background: rgba(2,3,8,0.9);
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        input[type="checkbox"]:checked + .toggle-track { background: var(--accent); }
+        input[type="checkbox"]:checked + .toggle-track::after { transform: translateX(14px); }
+
+        /* Speed buttons */
+        .speed-options { display: flex; gap: 4px; }
+        .speed-btn {
+            font-family: var(--font);
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--dim);
+            background: none;
+            border: 1px solid var(--glass-edge);
+            border-radius: 1px;
+            padding: 4px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .speed-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.14); }
+        .speed-btn.active { color: var(--accent); border-color: var(--accent-dim); }
+
         /* ── PIN TOOLTIP ── */
         #pin-tooltip {
             position: fixed;
@@ -277,9 +413,45 @@
 <div id="globe-container"></div>
 <div id="pin-tooltip"></div>
 
+<!-- MODAL -->
+<div id="modal-overlay">
+    <div class="panel" id="modal-box">
+        <div id="modal-header">
+            <span>GEO<span class="accent">_</span>RADIO</span>
+            <button id="modal-close">✕</button>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">About</div>
+            <p class="modal-about-text">A live signal explorer. Browse active broadcasts from thousands of radio stations across the globe in real time. Select any transmission point to tune in and establish a link.</p>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">Settings</div>
+
+            <div class="setting-row">
+                <span class="setting-name">Auto-Rotate</span>
+                <label class="toggle-wrap">
+                    <input type="checkbox" id="setting-autorotate" checked>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-name">Rotation Speed</span>
+                <div class="speed-options">
+                    <button class="speed-btn" data-speed="0.2">Slow</button>
+                    <button class="speed-btn active" data-speed="0.5">Normal</button>
+                    <button class="speed-btn" data-speed="1.2">Fast</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- BRAND -->
 <div class="panel" id="brand-box">
-    <div class="brand-logo">
+    <div class="brand-logo" id="brand-logo">
         <h1>GEO<span>_</span>RADIO</h1>
     </div>
     <div class="brand-coords">

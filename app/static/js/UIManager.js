@@ -1,8 +1,9 @@
 export class UIManager {
-    constructor(globeManager, audioManager, storageManager) {
-        this.globe = globeManager;
-        this.audio = audioManager;
-        this.storage = storageManager;
+    constructor(globeManager, audioManager, storageManager, settingsManager) {
+        this.globe    = globeManager;
+        this.audio    = audioManager;
+        this.storage  = storageManager;
+        this.settings = settingsManager;
         this.currentStation = null;
         this.scanTimer = null;
         this.onScanAdvance = null; // () => void
@@ -24,6 +25,7 @@ export class UIManager {
         this.elCanvas     = document.getElementById('visualizer-canvas');
 
         this._initListeners();
+        this._initModal();
         this._startVisualizerLoop();
         this._startLocalTimeClock();
     }
@@ -107,6 +109,44 @@ export class UIManager {
 
     setScanAdvanceCallback(fn) {
         this.onScanAdvance = fn;
+    }
+
+    // ── MODAL ────────────────────────────────────────────────────────────────
+
+    _initModal() {
+        const overlay       = document.getElementById('modal-overlay');
+        const closeBtn      = document.getElementById('modal-close');
+        const brandLogo     = document.getElementById('brand-logo');
+        const autoRotateChk = document.getElementById('setting-autorotate');
+        const speedBtns     = document.querySelectorAll('.speed-btn');
+
+        // Sync controls to current persisted values each time modal opens
+        const syncControls = () => {
+            autoRotateChk.checked = this.settings.get('autoRotate');
+            const speed = this.settings.get('rotationSpeed');
+            speedBtns.forEach(b =>
+                b.classList.toggle('active', parseFloat(b.dataset.speed) === speed)
+            );
+        };
+
+        const open  = () => { syncControls(); overlay.classList.add('open'); };
+        const close = () => overlay.classList.remove('open');
+
+        brandLogo.addEventListener('click', open);
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+        autoRotateChk.addEventListener('change', () => {
+            this.settings.set('autoRotate', autoRotateChk.checked);
+        });
+
+        speedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.settings.set('rotationSpeed', parseFloat(btn.dataset.speed));
+                speedBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
     }
 
     // ── STAR BUTTON ─────────────────────────────────────────────────────────
