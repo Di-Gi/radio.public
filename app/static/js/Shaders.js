@@ -213,19 +213,19 @@ export const BackgroundMaterial = {
 
             // Coloring
             vec3 gasColor = mix(
-                vec3(0.0, 0.1, 0.15),       // Darkest gas (Teal shadow)
-                vec3(0.15, 0.05, 0.25),     // Midtone (Royal Purple)
+                vec3(0.0, 0.12, 0.18),      // Darkest gas (richer teal shadow)
+                vec3(0.20, 0.0, 0.35),      // Midtone (richer royal purple)
                 clamp(f*f*4.0, 0.0, 1.0)
             );
-            
+
             vec3 hotGas = mix(
-                vec3(0.3, 0.0, 0.05),       // Dark Red
-                vec3(1.0, 0.6, 0.3),        // Orange Gold
+                vec3(0.25, 0.0, 0.08),      // Dark wine-red
+                vec3(0.70, 0.20, 0.0),      // Amber (no white-hot)
                 clamp(length(q), 0.0, 1.0)
             );
 
             vec3 nebula = mix(gasColor, hotGas, length(r) * f);
-            bg += nebula * 0.45;
+            bg += nebula * 0.55;
 
             // 3. STAR FIELD
             // (Stars use 2D UVs. The seam is technically present in the grid, 
