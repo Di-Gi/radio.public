@@ -19,10 +19,18 @@ export class UIManager {
         this.elLocalTime  = document.getElementById('st-local-time');
         this.elStTags     = document.getElementById('st-tags');
         this.elPlayBtn    = document.getElementById('play-btn');
-        this.elStarBtn    = document.getElementById('star-btn');
-        this.elScanBtn    = document.getElementById('scan-btn');
-        this.elSearch     = document.getElementById('search-input');
-        this.elCanvas     = document.getElementById('visualizer-canvas');
+        this.elStarBtn     = document.getElementById('star-btn');
+        this.elScanBtn     = document.getElementById('scan-btn');
+        this.elSearch      = document.getElementById('search-input');
+        this.elSearchBox   = document.getElementById('search-box');
+        this.elSearchPrev  = document.getElementById('search-prev');
+        this.elSearchNext  = document.getElementById('search-next');
+        this.elSearchCount = document.getElementById('search-count');
+        this.elCanvas      = document.getElementById('visualizer-canvas');
+
+        // Search navigation state
+        this._filteredResults = [];
+        this._searchIndex     = 0;
 
         this._initListeners();
         this._initModal();
@@ -50,19 +58,48 @@ export class UIManager {
             });
         });
 
-        // Search filtering — debounced to avoid Globe.gl rebuild on every keystroke
+        // Search — expand box on focus, collapse when empty + blurred
+        this.elSearch.addEventListener('focus', () =>
+            this.elSearchBox.classList.add('expanded')
+        );
+        this.elSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.elSearch.blur();
+        });
+        this.elSearch.addEventListener('blur', () => {
+            if (!this.elSearch.value) this.elSearchBox.classList.remove('expanded');
+        });
+
+        // Search filtering — debounced, with auto-navigate and nav button wiring
         let searchTimer = null;
         this.elSearch.addEventListener('input', (e) => {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => {
-                const val = e.target.value.toLowerCase();
-                const filtered = this.globe.stations.filter(s =>
+                const val = e.target.value.toLowerCase().trim();
+                if (!val) {
+                    this._filteredResults = [];
+                    this._searchIndex = 0;
+                    this.globe.setVisibleStations(this.globe.stations);
+                    this._updateSearchNav();
+                    return;
+                }
+                this._filteredResults = this.globe.stations.filter(s =>
                     (s.name    || '').toLowerCase().includes(val) ||
                     (s.tags    || '').toLowerCase().includes(val) ||
                     (s.country || '').toLowerCase().includes(val)
                 );
-                this.globe.world.pointsData(filtered);
+                this._searchIndex = 0;
+                this.globe.setVisibleStations(this._filteredResults);
+                if (this._filteredResults.length > 0) this._searchNavigate(0);
+                this._updateSearchNav();
             }, 150);
+        });
+
+        this.elSearchPrev.addEventListener('click', () => {
+            if (this._searchIndex > 0) this._searchNavigate(this._searchIndex - 1);
+        });
+        this.elSearchNext.addEventListener('click', () => {
+            if (this._searchIndex < this._filteredResults.length - 1)
+                this._searchNavigate(this._searchIndex + 1);
         });
 
         // Star / favorite
@@ -118,14 +155,27 @@ export class UIManager {
         const closeBtn      = document.getElementById('modal-close');
         const brandLogo     = document.getElementById('brand-logo');
         const autoRotateChk = document.getElementById('setting-autorotate');
-        const speedBtns     = document.querySelectorAll('.speed-btn');
+        const vizEnabledChk = document.getElementById('setting-viz-enabled');
+        const speedBtns     = document.querySelectorAll('.speed-btn:not(.viz-mode-btn):not(.viz-pal-btn)');
+        const modeBtns      = document.querySelectorAll('.viz-mode-btn');
+        const palBtns       = document.querySelectorAll('.viz-pal-btn');
 
-        // Sync controls to current persisted values each time modal opens
+        // Sync all controls to persisted values on open
         const syncControls = () => {
             autoRotateChk.checked = this.settings.get('autoRotate');
+            vizEnabledChk.checked = this.settings.get('vizEnabled');
+
             const speed = this.settings.get('rotationSpeed');
             speedBtns.forEach(b =>
                 b.classList.toggle('active', parseFloat(b.dataset.speed) === speed)
+            );
+            const mode = this.settings.get('vizMode');
+            modeBtns.forEach(b =>
+                b.classList.toggle('active', parseInt(b.dataset.mode) === mode)
+            );
+            const pal = this.settings.get('vizPalette');
+            palBtns.forEach(b =>
+                b.classList.toggle('active', parseInt(b.dataset.palette) === pal)
             );
         };
 
@@ -136,17 +186,30 @@ export class UIManager {
         closeBtn.addEventListener('click', close);
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
-        autoRotateChk.addEventListener('change', () => {
-            this.settings.set('autoRotate', autoRotateChk.checked);
-        });
+        // Globe settings
+        autoRotateChk.addEventListener('change', () =>
+            this.settings.set('autoRotate', autoRotateChk.checked)
+        );
+        speedBtns.forEach(btn => btn.addEventListener('click', () => {
+            this.settings.set('rotationSpeed', parseFloat(btn.dataset.speed));
+            speedBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }));
 
-        speedBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.settings.set('rotationSpeed', parseFloat(btn.dataset.speed));
-                speedBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
+        // Visualizer settings
+        vizEnabledChk.addEventListener('change', () =>
+            this.settings.set('vizEnabled', vizEnabledChk.checked)
+        );
+        modeBtns.forEach(btn => btn.addEventListener('click', () => {
+            this.settings.set('vizMode', parseInt(btn.dataset.mode));
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }));
+        palBtns.forEach(btn => btn.addEventListener('click', () => {
+            this.settings.set('vizPalette', parseInt(btn.dataset.palette));
+            palBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }));
     }
 
     // ── STAR BUTTON ─────────────────────────────────────────────────────────
@@ -235,6 +298,34 @@ export class UIManager {
 
         // Initial render
         this._resumeViz();
+    }
+
+    // ── SEARCH NAVIGATION ────────────────────────────────────────────────────
+
+    searchPrev() {
+        if (this._searchIndex > 0) this._searchNavigate(this._searchIndex - 1);
+    }
+
+    searchNext() {
+        if (this._searchIndex < this._filteredResults.length - 1)
+            this._searchNavigate(this._searchIndex + 1);
+    }
+
+    _searchNavigate(idx) {
+        this._searchIndex = idx;
+        // Re-use the full onStationSelect chain so selectedStation in main.js stays in sync
+        this.globe.onStationSelect(this._filteredResults[idx]);
+        this._updateSearchNav();
+    }
+
+    _updateSearchNav() {
+        const total = this._filteredResults.length;
+        const i     = this._searchIndex;
+        this.elSearchPrev.disabled  = total === 0 || i === 0;
+        this.elSearchNext.disabled  = total === 0 || i === total - 1;
+        this.elSearchCount.textContent = total > 0
+            ? `${i + 1} / ${total}`
+            : '';
     }
 
     // ── SCAN MODE ────────────────────────────────────────────────────────────

@@ -1,8 +1,10 @@
-import { GlobeManager }   from './GlobeManager.js';
-import { AudioManager }   from './AudioManager.js';
-import { UIManager }      from './UIManager.js';
-import { StorageManager } from './StorageManager.js';
-import { SettingsManager } from './SettingsManager.js';
+import { GlobeManager }      from './GlobeManager.js';
+import { AudioManager }      from './AudioManager.js';
+import { UIManager }         from './UIManager.js';
+import { StorageManager }    from './StorageManager.js';
+import { SettingsManager }   from './SettingsManager.js';
+import { VisualizerManager } from './VisualizerManager.js';
+import { ShortcutManager }   from './ShortcutManager.js';
 
 // Application state
 let selectedStation = null;
@@ -47,7 +49,20 @@ document.getElementById('play-btn').addEventListener('click', () => {
 
 // Init
 globeMgr.init();
-settingsMgr.apply(); // apply persisted settings now that scene is ready
+settingsMgr.apply();
+
+// Visualizer — needs scene (available post-init) and audio ref
+const vizMgr = new VisualizerManager(
+    globeMgr.world.scene(),
+    () => globeMgr.world.camera(),
+    audioMgr,
+    settingsMgr
+);
+globeMgr.setVizManager(vizMgr);
+settingsMgr.setViz(vizMgr);
+settingsMgr.applyViz();
+
+new ShortcutManager(audioMgr, uiMgr);
 
 fetch('/api/stations')
     .then(res => res.json())

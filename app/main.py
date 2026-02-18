@@ -69,8 +69,13 @@ async def proxy_stream(url: str = Query(...)):
             if writer:
                 writer.close()
                 await writer.wait_closed()
-
-    return StreamingResponse(stream_generator(), media_type="audio/mpeg")
+    
+    # Updated: Add CORS header to allow clean AudioContext analysis
+    return StreamingResponse(
+        stream_generator(), 
+        media_type="audio/mpeg", 
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 # --- DATABASE & INGESTION ---
 def run_ingestion():

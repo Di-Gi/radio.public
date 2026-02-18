@@ -37,6 +37,95 @@ export const GlobeMaterial = {
     `
 };
 
+export const VisualizerMaterial = {
+
+    vertex: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+
+    fragment: /* glsl */`
+        uniform sampler2D uFreqData;   // 128×1 RGBA — FFT bins in .r, 0→1
+        uniform float     uMode;       // 0=polar  1=bars  2=ring  (float — Three.js sends floats)
+        uniform float     uPalette;    // 0=accent 1=cyan  2=plasma 3=mono
+        uniform float     uTime;
+        uniform float     uOpacity;
+
+        varying vec2 vUv;
+
+        #define PI      3.14159265359
+        #define TWO_PI  6.28318530718
+
+        // ── Palette ─────────────────────────────────────────────────────────────
+        vec3 pal(float amp) {
+            if (uPalette < 0.5) return mix(vec3(0.9,  0.22, 0.0),  vec3(1.0,  0.62, 0.15), amp); // Accent
+            if (uPalette < 1.5) return mix(vec3(0.0,  0.58, 0.85), vec3(0.4,  0.95, 1.0),  amp); // Cyan
+            if (uPalette < 2.5) {                                                                  // Plasma
+                vec3 lo  = vec3(0.45, 0.0,  0.75);
+                vec3 mid = vec3(0.85, 0.0,  0.45);
+                vec3 hi  = vec3(1.0,  0.45, 0.0);
+                return amp < 0.5 ? mix(lo, mid, amp * 2.0) : mix(mid, hi, (amp - 0.5) * 2.0);
+            }
+            return mix(vec3(0.55, 0.60, 0.68), vec3(1.0), amp);                                   // Mono
+        }
+
+        void main() {
+            vec2  p = (vUv - 0.5) * 2.0;   // -1..1, center at origin
+            float r = length(p);
+            if (r > 1.0) discard;
+
+            float angle = atan(p.y, p.x);              // -PI to PI
+            float t     = (angle + PI) / TWO_PI;       // 0→1 around circle
+
+            float intensity = 0.0;
+            float amp       = 0.0;
+
+            // ── Mode 0: Polar ────────────────────────────────────────────────────
+            if (uMode < 0.5) {
+                amp = texture2D(uFreqData, vec2(t, 0.5)).r;
+
+                float innerR  = 0.26;
+                float outerR  = innerR + amp * 0.68;
+
+                float bar     = step(innerR, r) * step(r, outerR);
+                float ring    = smoothstep(0.022, 0.0, abs(r - innerR)) * 0.38;
+                float tipDist = r - outerR;
+                float glow    = max(0.0, 1.0 - tipDist / 0.1) * step(0.0, tipDist) * amp * 0.65;
+
+                intensity = max(bar, ring) + glow;
+
+            // ── Mode 1: Bars ─────────────────────────────────────────────────────
+            } else if (uMode < 1.5) {
+                amp        = texture2D(uFreqData, vec2(vUv.x, 0.5)).r;
+                float fill = step(vUv.y, amp * 0.92);
+                float edge = max(0.0, 1.0 - abs(vUv.y - amp * 0.92) / 0.055);
+                float clip = step(r, 0.98);
+
+                intensity = (fill * 0.70 + edge * 0.95) * clip;
+
+            // ── Mode 2: Ring Wave ────────────────────────────────────────────────
+            } else {
+                amp = texture2D(uFreqData, vec2(t, 0.5)).r;
+
+                float ringR = 0.48 + amp * 0.36;
+                float dist  = abs(r - ringR);
+                float rim   = smoothstep(0.03, 0.0, dist);
+                float bloom = smoothstep(0.16, 0.0, dist) * amp * 0.5;
+                float quiet = smoothstep(0.018, 0.0, abs(r - 0.48)) * 0.28;
+
+                intensity = max(rim + bloom, quiet);
+            }
+
+            if (intensity < 0.004) discard;
+
+            gl_FragColor = vec4(pal(amp) * intensity * uOpacity, 1.0);
+        }
+    `
+};
+
 export const BackgroundMaterial = {
 
     vertex: /* glsl */`

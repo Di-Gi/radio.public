@@ -229,18 +229,20 @@
             bottom: 20px; right: 20px;
             width: 270px;
             padding: 14px 18px;
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        #search-box.expanded { width: 400px; }
 
-        .search-label {
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            color: var(--dim);
-            margin-bottom: 9px;
+        .search-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         #search-input {
-            width: 100%;
+            flex: 1;
+            min-width: 0;
             background: transparent;
             border: none;
             border-bottom: 1px solid var(--glass-edge);
@@ -253,6 +255,49 @@
             letter-spacing: 0.04em;
         }
         #search-input::placeholder { color: var(--dim); }
+        #search-input:-webkit-autofill,
+        #search-input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px transparent inset;
+            -webkit-text-fill-color: var(--fg);
+            transition: background-color 9999s ease;
+        }
+
+        .search-nav-btn {
+            display: none;
+            font-family: var(--font);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--dim);
+            background: none;
+            border: 1px solid var(--glass-edge);
+            border-radius: 1px;
+            padding: 3px 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: color 0.15s, border-color 0.15s;
+            line-height: 1;
+        }
+        #search-box.expanded .search-nav-btn { display: block; }
+        .search-nav-btn:hover:not(:disabled) { color: var(--fg); border-color: rgba(255,255,255,0.14); }
+        .search-nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+        .search-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .search-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--dim);
+        }
+        #search-count {
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: var(--dim);
+        }
 
         /* ── MODAL ── */
         #modal-overlay {
@@ -446,6 +491,37 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal-section">
+            <div class="label">Globe Visualizer</div>
+
+            <div class="setting-row">
+                <span class="setting-name">Enabled</span>
+                <label class="toggle-wrap">
+                    <input type="checkbox" id="setting-viz-enabled" checked>
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-name">Mode</span>
+                <div class="speed-options">
+                    <button class="speed-btn viz-mode-btn active" data-mode="0">Polar</button>
+                    <button class="speed-btn viz-mode-btn" data-mode="1">Bars</button>
+                    <button class="speed-btn viz-mode-btn" data-mode="2">Ring</button>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <span class="setting-name">Palette</span>
+                <div class="speed-options">
+                    <button class="speed-btn viz-pal-btn active" data-palette="0">Accent</button>
+                    <button class="speed-btn viz-pal-btn" data-palette="1">Cyan</button>
+                    <button class="speed-btn viz-pal-btn" data-palette="2">Plasma</button>
+                    <button class="speed-btn viz-pal-btn" data-palette="3">Mono</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -498,8 +574,15 @@
 
 <!-- SEARCH -->
 <div class="panel" id="search-box">
-    <div class="search-label">FREQUENCY SEARCH</div>
-    <input type="text" id="search-input" placeholder="station · country · tag" spellcheck="false">
+    <div class="search-row">
+        <button id="search-prev" class="search-nav-btn" disabled>&#8249;</button>
+        <input type="text" id="search-input" placeholder="station · country · tag" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">
+        <button id="search-next" class="search-nav-btn" disabled>&#8250;</button>
+    </div>
+    <div class="search-footer">
+        <span class="search-label">Frequency Search</span>
+        <span id="search-count"></span>
+    </div>
 </div>
 
 <script type="module" src="./js/main.js"></script>

@@ -30,7 +30,8 @@ export class GlobeManager {
         this.isFavorite     = isFavorite || (() => false);
         this.world          = null;
         this.bgMaterial     = null;
-        this.stations       = [];
+        this.stations         = [];
+        this._visibleStations = []; // current filtered subset — equals stations when no search
 
         // Pin state
         this.selectedUuid = null;
@@ -46,6 +47,13 @@ export class GlobeManager {
 
         // Pin refresh batching
         this._refreshPending = false;
+
+        // Visualizer
+        this.vizManager = null;
+
+        // Navigation — arc flight path + dedup
+        this._navTarget = null;  // { lat, lng } currently animating toward
+        this._navTimer  = null;  // second-phase arc timer
     }
 
     init() {
@@ -55,6 +63,7 @@ export class GlobeManager {
             fragmentShader: GlobeMaterial.fragment,
             transparent:    true,
             side:           THREE.FrontSide,
+            depthWrite: false,
         });
 
         this.bgMaterial = new THREE.ShaderMaterial({
@@ -161,6 +170,7 @@ export class GlobeManager {
 
         // ── 6. ANIMATION LOOP ─────────────────────────────────────────────────
         this._animate();
+
     }
 
     // Fetch the bundled GeoJSON and render country outlines as transparent
@@ -180,8 +190,13 @@ export class GlobeManager {
             .catch(() => { /* borders unavailable — globe still works */ });
     }
 
+    setVizManager(vm) {
+        this.vizManager = vm;
+    }
+
     _animate() {
         if (this.bgMaterial) this.bgMaterial.uniforms.uTime.value += 0.005;
+        if (this.vizManager) this.vizManager.update();
         requestAnimationFrame(() => this._animate());
     }
 
@@ -198,12 +213,59 @@ export class GlobeManager {
     }
 
     updateData(data) {
-        this.stations = data;
+        this.stations         = data;
+        this._visibleStations = data;
         this.world.pointsData(data);
     }
 
+    // Called by UIManager when search filters or clears
+    setVisibleStations(arr) {
+        this._visibleStations = arr;
+        this.world.pointsData(arr);
+    }
+
     focus(lat, lng) {
-        this.world.pointOfView({ lat, lng, altitude: 1.8 }, 1200);
+        // Deduplicate — if already animating to this destination, don't interrupt
+        if (this._navTarget &&
+            Math.abs(this._navTarget.lat - lat) < 0.5 &&
+            Math.abs(this._navTarget.lng  - lng) < 0.5) return;
+
+        clearTimeout(this._navTimer);
+        this._navTarget = { lat, lng };
+
+        const cur  = this.world.pointOfView();
+        const dLat = lat - cur.lat;
+
+        // Normalise longitude delta across the date line
+        let dLng = lng - cur.lng;
+        if (dLng >  180) dLng -= 360;
+        if (dLng < -180) dLng += 360;
+
+        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+        if (dist > 15) {
+            // ── Arc flight ─────────────────────────────────────────────────────
+            // Both phases target the same lat/lng — no direction change, no jag.
+            // The arc shape comes from altitude only.
+            // Phase 2 starts before phase 1 ends (overlap) so Globe.gl hands off
+            // while the camera still has velocity — continuous, smooth motion.
+            const peakAlt = Math.min(2.0 + dist * 0.022, 4.5);
+            const rise    = 850;
+            const descent = 600;
+            const overlap = 220;  // start descent this many ms before rise ends
+
+            this.world.pointOfView({ lat, lng, altitude: peakAlt }, rise);
+            this._navTimer = setTimeout(() => {
+                this.world.pointOfView({ lat, lng, altitude: 1.8 }, descent);
+                this._navTimer = setTimeout(() => { this._navTarget = null; }, descent);
+            }, rise - overlap);
+        } else {
+            // ── Direct flight ──────────────────────────────────────────────────
+            const dur = 850 + dist * 12;
+            this.world.pointOfView({ lat, lng, altitude: 1.8 }, dur);
+            this._navTimer = setTimeout(() => { this._navTarget = null; }, dur);
+        }
+
         this.stopRotation();
     }
 
@@ -262,10 +324,11 @@ export class GlobeManager {
         });
     }
 
-    // Re-feed pointsData to force Globe.gl to re-run the accessor functions
+    // Re-feed pointsData to force Globe.gl to re-run the accessor functions.
+    // Uses _visibleStations so an active search filter is preserved.
     _refreshPoints() {
-        if (this.world && this.stations.length) {
-            this.world.pointsData([...this.stations]);
+        if (this.world && this._visibleStations.length) {
+            this.world.pointsData([...this._visibleStations]);
         }
     }
 
