@@ -1,0 +1,21 @@
+id: geo-radio
+name: "GEO_RADIO"
+version: "1.0.0"
+tagline: "Explore the world through live radio"
+description: >-
+  A minimalist 3D globe for discovering and listening to live radio 
+  broadcasts from around the planet. Features a midnight aesthetic, 
+  real-time signal visualizers, and a global frequency search.
+category: "Media"
+developer: "DG"
+website: "https://github.com/Di-Gi/radio.private"
+dependencies: []
+repo: "https://github.com/Di-Gi/radio.private"
+support: "https://github.com/Di-Gi/radio.private/issues"
+port: 8000
+desktopMinWidth: 1000
+desktopMinHeight: 800
+gallery:
+  - 1.jpg
+path: ""
+defaultPassword: ""
