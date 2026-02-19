@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /data
 
 # Copy built frontend from Stage 1
-COPY --from=builder /dist /app/dist
+COPY --from=builder /build/dist /app/dist 
 
 # Copy backend code
 COPY app /app/app
