@@ -126,6 +126,179 @@ export const VisualizerMaterial = {
     `
 };
 
+// ── SHARED PALETTE (injected into each visualizer fragment shader) ────────────
+const PALETTE_GLSL = `
+uniform float uPalette;
+
+vec3 getPalette(float t) {
+    vec3 c = vec3(0.0);
+    if (uPalette < 0.5) {
+        c = mix(vec3(1.0, 0.1, 0.0), vec3(1.0, 0.8, 0.2), t);       // Accent (Orange/Fire)
+    } else if (uPalette < 1.5) {
+        c = mix(vec3(0.0, 0.4, 0.9), vec3(0.4, 0.9, 1.0), t);        // Cyan (Data)
+    } else if (uPalette < 2.5) {
+        c = mix(vec3(0.3, 0.0, 0.6), vec3(1.0, 0.0, 0.4), t);        // Plasma (Purple/Pink)
+    } else {
+        c = vec3(t * 0.9 + 0.1);                                       // Mono
+    }
+    return c;
+}
+`;
+
+// ── MODE 0: SCAN (Holographic Core) ──────────────────────────────────────────
+export const ScanMaterial = {
+    vertex: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragment: /* glsl */`
+        uniform sampler2D uFreqData;
+        uniform float uTime;
+        uniform float uOpacity;
+        varying vec2 vUv;
+
+        ${PALETTE_GLSL}
+
+        void main() {
+            vec2 p = (vUv - 0.5) * 2.0;
+            float r = length(p);
+            float a = atan(p.y, p.x);
+            float t = (a + 3.14159) / 6.28318;
+
+            float freq = texture2D(uFreqData, vec2(abs(t - 0.5) * 2.0, 0.5)).r;
+
+            // Concentric scan rings
+            float rings = fract(r * 6.0 - uTime * 0.1);
+            float ringLine = smoothstep(0.0, 0.05, rings) * smoothstep(0.1, 0.05, rings);
+
+            // Radar sweep arm
+            float sweep = smoothstep(0.0, 0.3, 1.0 - abs(mod(t - uTime * 0.2, 1.0) - 0.5) * 2.0);
+
+            // Audio-reactive wave
+            float wave = smoothstep(0.01, 0.0, abs(r - (0.3 + freq * 0.4)));
+
+            float alpha = (ringLine * 0.1 + wave + sweep * 0.1) * smoothstep(1.0, 0.8, r);
+            vec3 col = getPalette(freq);
+
+            if (alpha < 0.01) discard;
+            gl_FragColor = vec4(col, alpha * uOpacity);
+        }
+    `
+};
+
+// ── MODE 1: ORBIT (Equatorial Carrier Wave) ───────────────────────────────────
+export const OrbitMaterial = {
+    vertex: /* glsl */`
+        uniform sampler2D uFreqData;
+        varying float vAmp;
+        varying vec2 vUv;
+
+        void main() {
+            vUv = uv;
+            float amp = texture2D(uFreqData, vec2(uv.x, 0.5)).r;
+            vAmp = amp;
+
+            vec3 pos = position;
+            pos.z += amp * 12.0;  // spike outward perpendicular to ring plane
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+    `,
+    fragment: /* glsl */`
+        uniform float uOpacity;
+        varying float vAmp;
+        varying vec2 vUv;
+
+        ${PALETTE_GLSL}
+
+        void main() {
+            float rim = 1.0 - abs(vUv.y - 0.5) * 2.0;
+            float alpha = smoothstep(0.0, 0.2, rim);
+
+            vec3 col = getPalette(vAmp);
+            col += vec3(0.5) * step(0.8, vAmp);  // brighten frequency peaks
+
+            gl_FragColor = vec4(col, alpha * vAmp * uOpacity * 1.5);
+        }
+    `
+};
+
+// ── MODE 2: FLUX (Ionosphere Shield) ─────────────────────────────────────────
+export const FluxMaterial = {
+    vertex: /* glsl */`
+        varying vec3 vNormal;
+        varying vec3 vPos;    // object-space position — seam-free noise input
+        void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vPos    = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragment: /* glsl */`
+        uniform sampler2D uFreqData;
+        uniform float uTime;
+        uniform float uOpacity;
+        varying vec3 vNormal;
+        varying vec3 vPos;
+
+        ${PALETTE_GLSL}
+
+        // ── 2D value noise (used per-face in triplanar below) ─────────────────
+        float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float vnoise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            return mix(
+                mix(hash2(i + vec2(0.0, 0.0)), hash2(i + vec2(1.0, 0.0)), f.x),
+                mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x),
+                f.y
+            );
+        }
+
+        // ── Triplanar noise — no UV seam ─────────────────────────────────────
+        // Projects object-space position onto YZ / XZ / XY planes,
+        // blends by surface normal so no discontinuity exists anywhere on the sphere.
+        float triNoise(vec3 p, float t) {
+            // Scale: sphere r=105, scale * 105 ≈ 10 → similar cell density to old vUv*10
+            float s = 0.095;
+            float nx = vnoise(p.yz * s + vec2(t * 0.20, t * 0.05));
+            float ny = vnoise(p.xz * s + vec2(t * 0.15, t * 0.07));
+            float nz = vnoise(p.xy * s + vec2(t * 0.18, t * 0.04));
+
+            // Blend weights — sharpen to reduce transition zones
+            vec3 w = pow(abs(normalize(p)), vec3(6.0));
+            w /= w.x + w.y + w.z;
+            return nx * w.x + ny * w.y + nz * w.z;
+        }
+
+        void main() {
+            // Average low-frequency (bass) bins
+            float bass = 0.0;
+            for (int i = 0; i < 10; i++) bass += texture2D(uFreqData, vec2(float(i) / 128.0, 0.5)).r;
+            bass /= 10.0;
+
+            float n = triNoise(vPos, uTime);
+
+            // Fresnel rim — view-space normal dot view direction (0,0,1)
+            float NdotV  = abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
+            float fresnel = pow(1.0 - NdotV, 2.5);
+
+            // Pull the peak inward so alpha returns to ~0 before the geometry hard-stops.
+            // smoothstep(1.0, 0.6, fresnel) = 1 near centre, 0 at the silhouette.
+            float rimGlow = fresnel * smoothstep(1.0, 0.60, fresnel);
+
+            float alpha = (n * bass * 0.8 + rimGlow * 0.55) * uOpacity;
+            vec3  col   = getPalette(bass * n + 0.2);
+
+            gl_FragColor = vec4(col, alpha);
+        }
+    `
+};
+
 export const BackgroundMaterial = {
 
     vertex: /* glsl */`
