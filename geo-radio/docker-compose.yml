@@ -1,7 +1,7 @@
 version: "3.7"
 
 services:
-  web:
+  app_proxy:
     image: dg78/geo-radio:latest  # <--- MUST match what you pushed to Docker Hub
     container_name: geo-radio_web_1
     restart: on-failure
