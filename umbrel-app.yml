@@ -8,14 +8,14 @@ description: >-
   real-time signal visualizers, and a global frequency search.
 category: "Media"
 developer: "DG"
-website: "https://github.com/Di-Gi/radio.private"
+website: "https://github.com/Di-Gi/radio.public"
 dependencies: []
-repo: "https://github.com/Di-Gi/radio.private"
-support: "https://github.com/Di-Gi/radio.private/issues"
+repo: "https://github.com/Di-Gi/radio.public"
+support: "https://github.com/Di-Gi/radio.public/issues"
 port: 8000
 desktopMinWidth: 1000
 desktopMinHeight: 800
 gallery:
-  - 1.jpg
+  - icon.png
 path: ""
 defaultPassword: ""
