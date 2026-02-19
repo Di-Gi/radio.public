@@ -4,6 +4,7 @@ name: "GEO_RADIO"
 version: "1.0.0"
 tagline: "Explore the world through live radio"
 category: "Media"
+icon: "icon.png"
 port: 8000
 description: >-
  A minimalist 3D globe for discovering and listening to live radio.

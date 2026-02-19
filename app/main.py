@@ -111,8 +111,11 @@ def favicon(): return Response(status_code=204)
 # app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
 # (for production)
 # app.mount("/", StaticFiles(directory="dist", html=True), name="static")
-if os.path.exists("dist"):
-    app.mount("/", StaticFiles(directory="dist", html=True), name="static")
+base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+dist_path = os.path.join(base_path, "dist")
+
+if os.path.exists(dist_path):
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
