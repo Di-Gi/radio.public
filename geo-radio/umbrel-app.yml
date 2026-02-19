@@ -6,13 +6,13 @@ tagline: "Explore the world through live radio"
 category: "Media"
 port: 8000
 description: >-
-  A minimalist 3D globe for discovering and listening to live radio.
+ A minimalist 3D globe for discovering and listening to live radio.
 developer: "DG"
 website: "https://github.com/Di-Gi/radio.public"
 repo: "https://github.com/Di-Gi/radio.public"
 support: "https://github.com/Di-Gi/radio.public/issues"
 gallery:
-  - icon.jpg
+  - 1.jpg
 path: ""
 submitter: "Di-Gi"
 submission: "https://github.com/Di-Gi/radio.public"

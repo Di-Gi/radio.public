@@ -1,15 +1,17 @@
 version: "3.7"
 
 services:
-  app_proxy:
-    image: dg78/geo-radio:latest
+  web:
+    image: dg78/geo-radio:latest  # <--- MUST match what you pushed to Docker Hub
+    container_name: geo-radio_web_1
     restart: on-failure
     stop_grace_period: 1m
+    # networks:
+    #   - default_umbrel_network
     volumes:
+      # Maps the container's internal DB path to Umbrel's storage
       - ${APP_DATA_DIR}/data:/data
-    networks:
-      - umbrel
 
-networks:
-  umbrel:
-    external: true
+# networks:
+#   default_umbrel_network:
+#     external: true
