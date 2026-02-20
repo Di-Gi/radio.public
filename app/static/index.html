@@ -432,6 +432,51 @@
         .speed-btn:hover { color: var(--fg); border-color: rgba(255,255,255,0.14); }
         .speed-btn.active { color: var(--accent); border-color: var(--accent-dim); }
 
+        /* ── CUSTOM TRANSMISSIONS FORM ── */
+        .modal-input {
+            background: transparent;
+            border: 1px solid var(--glass-edge);
+            border-radius: 1px;
+            color: var(--fg);
+            font-family: var(--font);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 5px 8px;
+            outline: none;
+            text-transform: none;
+            cursor: text;
+            transition: border-color 0.15s;
+            user-select: text;
+            min-width: 0;
+        }
+        .modal-input:focus { border-color: rgba(255, 255, 255, 0.22); }
+        .modal-input::placeholder { color: var(--dim); font-weight: 500; }
+        /* Hide number input spinners */
+        .modal-input[type="number"] { -moz-appearance: textfield; }
+        .modal-input[type="number"]::-webkit-inner-spin-button,
+        .modal-input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+        #custom-station-list { max-height: 100px; overflow-y: auto; margin-bottom: 8px; }
+        .custom-empty { font-size: 9px; color: var(--dim); letter-spacing: 0.1em; padding: 4px 0; }
+
+        /* ── PICK-MODE LOADER ── */
+        @keyframes pick-spin {
+            to { transform: rotate(360deg); }
+        }
+        .pick-loader {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border: 1px solid var(--accent-dim);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: pick-spin 0.55s linear infinite;
+            vertical-align: middle;
+            margin-right: 5px;
+            flex-shrink: 0;
+        }
+
         /* ── PIN TOOLTIP ── */
         #pin-tooltip {
             position: fixed;
@@ -519,6 +564,35 @@
                     <button class="speed-btn viz-pal-btn" data-palette="1">Cyan</button>
                     <button class="speed-btn viz-pal-btn" data-palette="2">Plasma</button>
                     <button class="speed-btn viz-pal-btn" data-palette="3">Mono</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">Custom Transmissions</div>
+
+            <!-- LIST VIEW -->
+            <div id="custom-list-view">
+                <div id="custom-station-list"></div>
+                <button id="btn-custom-add" class="speed-btn" style="width:100%;padding:6px 8px;">+ Register Frequency</button>
+            </div>
+
+            <!-- ADD FORM (hidden until activated) -->
+            <div id="custom-add-view" style="display:none;">
+                <div class="setting-row">
+                    <input type="text" id="inp-custom-name" class="modal-input" style="width:100%;" placeholder="STATION NAME">
+                </div>
+                <div class="setting-row">
+                    <input type="text" id="inp-custom-url" class="modal-input" style="width:100%;" placeholder="STREAM URL (MP3/AAC)">
+                </div>
+                <div class="setting-row" style="justify-content:flex-start;gap:5px;">
+                    <input type="number" id="inp-custom-lat" class="modal-input" style="width:28%;" placeholder="LAT">
+                    <input type="number" id="inp-custom-lng" class="modal-input" style="width:28%;" placeholder="LNG">
+                    <button id="btn-custom-pick" class="speed-btn" style="flex:1;">Pick on Map</button>
+                </div>
+                <div class="setting-row" style="justify-content:flex-end;gap:8px;">
+                    <button id="btn-custom-cancel" class="speed-btn">Cancel</button>
+                    <button id="btn-custom-save" class="speed-btn" style="color:var(--accent);border-color:var(--accent-dim);">Save</button>
                 </div>
             </div>
         </div>

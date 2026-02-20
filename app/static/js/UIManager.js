@@ -32,8 +32,12 @@ export class UIManager {
         this._filteredResults = [];
         this._searchIndex     = 0;
 
+        this._onCustomStationChange = null;
+        this._cancelPick           = null;
+
         this._initListeners();
         this._initModal();
+        this._initCustomStationLogic();
         this._startVisualizerLoop();
         this._startLocalTimeClock();
     }
@@ -156,7 +160,7 @@ export class UIManager {
         const brandLogo     = document.getElementById('brand-logo');
         const autoRotateChk = document.getElementById('setting-autorotate');
         const vizEnabledChk = document.getElementById('setting-viz-enabled');
-        const speedBtns     = document.querySelectorAll('.speed-btn:not(.viz-mode-btn):not(.viz-pal-btn)');
+        const speedBtns     = document.querySelectorAll('.speed-btn[data-speed]');
         const modeBtns      = document.querySelectorAll('.viz-mode-btn');
         const palBtns       = document.querySelectorAll('.viz-pal-btn');
 
@@ -351,5 +355,147 @@ export class UIManager {
             if (this.onScanAdvance) this.onScanAdvance();
             this._scheduleScanTick();
         }, 10000);
+    }
+
+    // ── CUSTOM STATIONS ──────────────────────────────────────────────────────
+
+    setCustomStationCallback(fn) {
+        this._onCustomStationChange = fn;
+    }
+
+    _initCustomStationLogic() {
+        const renderList = () => {
+            const stations  = this.storage.getCustomStations();
+            const container = document.getElementById('custom-station-list');
+            if (stations.length === 0) {
+                container.innerHTML = '<div class="custom-empty">NO CUSTOM FREQUENCIES</div>';
+                return;
+            }
+            container.innerHTML = '';
+            stations.forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'setting-row';
+                // Station name is user-supplied — sanitise via textContent, not innerHTML
+                const nameEl = document.createElement('span');
+                nameEl.className = 'setting-name';
+                nameEl.style.cssText = 'text-transform:none;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                nameEl.textContent = s.name;
+                const delBtn = document.createElement('button');
+                delBtn.className = 'speed-btn';
+                delBtn.style.cssText = 'padding:2px 7px;flex-shrink:0;';
+                delBtn.textContent = '×';
+                delBtn.onclick = () => {
+                    this.storage.removeCustomStation(s.uuid);
+                    renderList();
+                    this._onCustomStationChange?.();
+                };
+                row.appendChild(nameEl);
+                row.appendChild(delBtn);
+                container.appendChild(row);
+            });
+        };
+
+        const overlay  = document.getElementById('modal-overlay');
+        const listView = document.getElementById('custom-list-view');
+        const addView  = document.getElementById('custom-add-view');
+        const pickBtn  = document.getElementById('btn-custom-pick');
+
+        const resetForm = () => {
+            ['inp-custom-name', 'inp-custom-url', 'inp-custom-lat', 'inp-custom-lng']
+                .forEach(id => { document.getElementById(id).value = ''; });
+        };
+
+        const showListView = () => {
+            this._cancelPick?.();   // abort any in-flight pick before closing
+            resetForm();
+            addView.style.display  = 'none';
+            listView.style.display = 'block';
+        };
+
+        document.getElementById('btn-custom-add').onclick = () => {
+            listView.style.display = 'none';
+            addView.style.display  = 'block';
+        };
+
+        document.getElementById('btn-custom-cancel').onclick = showListView;
+
+        pickBtn.onclick = async () => {
+            try {
+                const { lat, lng } = await this._pickCoordinates(overlay, pickBtn);
+                document.getElementById('inp-custom-lat').value = lat.toFixed(4);
+                document.getElementById('inp-custom-lng').value = lng.toFixed(4);
+            } catch (e) {
+                if (e.name !== 'AbortError') throw e;
+                // Cancelled via Escape or Cancel — UI already restored by _pickCoordinates
+            } finally {
+                this._cancelPick = null;
+            }
+        };
+
+        document.getElementById('btn-custom-save').onclick = () => {
+            const name = document.getElementById('inp-custom-name').value.trim();
+            const url  = document.getElementById('inp-custom-url').value.trim();
+            const lat  = parseFloat(document.getElementById('inp-custom-lat').value);
+            const lng  = parseFloat(document.getElementById('inp-custom-lng').value);
+
+            if (!name || !url || isNaN(lat) || isNaN(lng)) {
+                alert('All fields required. Use "Pick on Map" to set coordinates.');
+                return;
+            }
+
+            this.storage.addCustomStation({
+                uuid:    `cust-${Date.now()}`,
+                name,
+                url,
+                lat,
+                lng,
+                country: 'Custom',
+                tags:    'User Stream',
+                isCustom: true,
+            });
+
+            showListView();
+            renderList();
+            this._onCustomStationChange?.();
+        };
+
+        renderList();
+    }
+
+    // Returns a Promise that resolves with { lat, lng } on globe click,
+    // or rejects with AbortError when cancelled (Escape key or programmatic cancel).
+    // Sets this._cancelPick so the caller can abort externally (e.g. Cancel button).
+    _pickCoordinates(overlay, pickBtn) {
+        return new Promise((resolve, reject) => {
+            overlay.style.pointerEvents = 'none';
+            pickBtn.innerHTML = '<span class="pick-loader"></span> Waiting...';
+            pickBtn.classList.add('active');
+
+            const cleanup = () => {
+                overlay.style.pointerEvents = '';
+                pickBtn.textContent = 'Pick on Map';
+                pickBtn.classList.remove('active');
+                this.globe.onBackgroundClick = null;
+                document.removeEventListener('keydown', escHandler);
+            };
+
+            const escHandler = (e) => {
+                if (e.key !== 'Escape') return;
+                cleanup();
+                reject(new DOMException('Pick cancelled', 'AbortError'));
+            };
+            document.addEventListener('keydown', escHandler);
+
+            this.globe.onBackgroundClick = ({ lat, lng }) => {
+                cleanup();
+                resolve({ lat, lng });
+            };
+
+            // Expose external cancel hook (used by Cancel button via showListView)
+            this._cancelPick = () => {
+                cleanup();
+                reject(new DOMException('Pick cancelled', 'AbortError'));
+            };
+        });
     }
 }

@@ -54,6 +54,9 @@ export class GlobeManager {
         // Navigation — arc flight path + dedup
         this._navTarget = null;  // { lat, lng } currently animating toward
         this._navTimer  = null;  // second-phase arc timer
+
+        // Coordinate picking callback — set by UIManager during pick mode
+        this.onBackgroundClick = null;
     }
 
     init() {
@@ -115,8 +118,12 @@ export class GlobeManager {
                     this._hideTooltip();
                 }
             })
-            // Clicking empty globe space resumes auto-rotation
-            .onGlobeClick(() => this.resumeRotation());
+            // Clicking empty globe space resumes auto-rotation.
+            // When pick mode is active, also forwards coordinates to UIManager.
+            .onGlobeClick(({ lat, lng }) => {
+                this.resumeRotation();
+                if (this.onBackgroundClick) this.onBackgroundClick({ lat, lng });
+            });
 
         // ── 3. SCENE ─────────────────────────────────────────────────────────
         const bgMesh = new THREE.Mesh(

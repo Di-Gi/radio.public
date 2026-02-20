@@ -8,6 +8,7 @@ import { ShortcutManager }   from './ShortcutManager.js';
 
 // Application state
 let selectedStation = null;
+let _apiStations    = [];   // kept in memory so custom-station changes can re-merge
 
 const storageMgr = new StorageManager();
 
@@ -64,10 +65,16 @@ settingsMgr.applyViz();
 
 new ShortcutManager(audioMgr, uiMgr);
 
+const refreshStations = () =>
+    globeMgr.updateData([..._apiStations, ...storageMgr.getCustomStations()]);
+
+uiMgr.setCustomStationCallback(refreshStations);
+
 fetch('/api/stations')
     .then(res => res.json())
     .then(data => {
+        _apiStations = data;
         console.log(`Loaded ${data.length} stations`);
-        globeMgr.updateData(data);
+        refreshStations();
     })
     .catch(err => console.error("Failed to load stations:", err));

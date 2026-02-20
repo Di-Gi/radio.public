@@ -3,3 +3,4 @@ uvicorn
 pydantic
 sqlite-utils
 httpx
+yt-dlp

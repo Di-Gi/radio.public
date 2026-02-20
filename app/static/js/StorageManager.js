@@ -1,4 +1,5 @@
-const KEY = 'geo_radio_favorites';
+const KEY        = 'geo_radio_favorites';
+const KEY_CUSTOM = 'geo_radio_customs';
 
 export class StorageManager {
     isFavorite(uuid) {
@@ -37,5 +38,23 @@ export class StorageManager {
 
     _save(favs) {
         localStorage.setItem(KEY, JSON.stringify(favs));
+    }
+
+    // ── Custom stations ──────────────────────────────────────────────────────
+
+    getCustomStations() {
+        try { return JSON.parse(localStorage.getItem(KEY_CUSTOM) || '[]'); }
+        catch { return []; }
+    }
+
+    addCustomStation(station) {
+        const list = this.getCustomStations();
+        list.push(station);
+        localStorage.setItem(KEY_CUSTOM, JSON.stringify(list));
+    }
+
+    removeCustomStation(uuid) {
+        const list = this.getCustomStations().filter(s => s.uuid !== uuid);
+        localStorage.setItem(KEY_CUSTOM, JSON.stringify(list));
     }
 }

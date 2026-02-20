@@ -15,8 +15,17 @@ export class AudioManager {
             this._ensureAudioContext();
             this.statusCallback(true, "TRANSMITTING");
         });
-        this.audio.addEventListener('error', (e) => {
-            console.error("Audio Error:", e);
+        this.audio.addEventListener('error', () => {
+            const err = this.audio.error;
+            const codes = {
+                1: "ABORTED",
+                2: "NETWORK",
+                3: "DECODE",
+                4: "SRC_NOT_SUPPORTED",
+            };
+            const label = err ? (codes[err.code] ?? `UNKNOWN(${err.code})`) : "NO_ERROR_OBJ";
+            const msg   = err?.message || "(no message)";
+            console.error(`[AudioManager] error — code=${label} msg="${msg}" networkState=${this.audio.networkState} readyState=${this.audio.readyState} src=${this.audio.src}`);
             this.statusCallback(false, "SIGNAL LOST");
         });
     }
