@@ -1,7 +1,7 @@
 manifestVersion: 1
 id: geo-radio
 name: "GEO_RADIO"
-version: "1.0.0"
+version: "1.0.1"
 tagline: "Explore the world through live radio"
 category: "Media"
 icon: "icon.png"
