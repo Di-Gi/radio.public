@@ -1,6 +1,9 @@
 const STORAGE_KEY = 'geo_radio_settings';
 
+const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
 const DEFAULTS = {
+    ecoMode:       isMobile, // Smart default: on for mobile, off for desktop
     autoRotate:    true,
     rotationSpeed: 0.5,
     vizEnabled:    true,
@@ -49,6 +52,7 @@ export class SettingsManager {
 
     _applyKey(key, value) {
         switch (key) {
+            case 'ecoMode':       this.globe.setEcoMode(value);       break;
             case 'autoRotate':    this.globe.setAutoRotate(value);    break;
             case 'rotationSpeed': this.globe.setRotationSpeed(value); break;
             case 'vizEnabled':    this._viz?.setEnabled(value);       break;

@@ -1,6 +1,6 @@
 import Globe from 'globe.gl';
 import * as THREE from 'three';
-import { GlobeMaterial, BackgroundMaterial } from './Shaders.js';
+import { GlobeMaterial, BackgroundMaterial, BackgroundMaterialEco } from './Shaders.js';
 
 // ── Pin appearance constants ─────────────────────────────────────────────────
 const PIN = {
@@ -126,11 +126,15 @@ export class GlobeManager {
             });
 
         // ── 3. SCENE ─────────────────────────────────────────────────────────
-        const bgMesh = new THREE.Mesh(
+        this.bgMesh = new THREE.Mesh(
             new THREE.SphereGeometry(1000, 32, 32),
             this.bgMaterial
         );
-        this.world.scene().add(bgMesh);
+        this.world.scene().add(this.bgMesh);
+
+        // Safety clamp: cap pixel ratio at 1.5 even on high-end desktops to
+        // prevent 4K meltdowns; setEcoMode() will further clamp to 1.0 on mobile.
+        this.world.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
         // Soft ambient only — no directional light in the scene.
         // Our ShaderMaterial is lights:false so scene lights never touched the
@@ -298,6 +302,27 @@ export class GlobeManager {
     setRotationSpeed(speed) {
         if (!this.world) return;
         this.world.controls().autoRotateSpeed = speed;
+    }
+
+    setEcoMode(enabled) {
+        if (!this.world) return;
+
+        // 1. Swap background shader (hot-reload safe — Three.js recompiles automatically)
+        const src = enabled ? BackgroundMaterialEco : BackgroundMaterial;
+        this.bgMaterial = new THREE.ShaderMaterial({
+            uniforms:       { uTime: { value: this.bgMaterial?.uniforms?.uTime?.value ?? 0.0 } },
+            vertexShader:   src.vertex,
+            fragmentShader: src.fragment,
+            side:           THREE.BackSide,
+        });
+        if (this.bgMesh) this.bgMesh.material = this.bgMaterial;
+
+        // 2. Clamp pixel ratio: 1.0 in eco (maximises fill-rate savings on HiDPI),
+        //    otherwise restore the 1.5 safety cap.
+        this.world.renderer().setPixelRatio(enabled ? 1.0 : Math.min(window.devicePixelRatio, 1.5));
+
+        // 3. Atmosphere is an extra render pass — disable it in eco mode
+        this.world.showAtmosphere(!enabled);
     }
 
     // Called on empty-globe click — immediate resume, clears any pending timer.

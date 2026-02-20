@@ -158,6 +158,7 @@ export class UIManager {
         const overlay       = document.getElementById('modal-overlay');
         const closeBtn      = document.getElementById('modal-close');
         const brandLogo     = document.getElementById('brand-logo');
+        const ecoModeChk    = document.getElementById('setting-ecomode');
         const autoRotateChk = document.getElementById('setting-autorotate');
         const vizEnabledChk = document.getElementById('setting-viz-enabled');
         const speedBtns     = document.querySelectorAll('.speed-btn[data-speed]');
@@ -166,6 +167,7 @@ export class UIManager {
 
         // Sync all controls to persisted values on open
         const syncControls = () => {
+            ecoModeChk.checked    = this.settings.get('ecoMode');
             autoRotateChk.checked = this.settings.get('autoRotate');
             vizEnabledChk.checked = this.settings.get('vizEnabled');
 
@@ -191,6 +193,9 @@ export class UIManager {
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
         // Globe settings
+        ecoModeChk.addEventListener('change', () =>
+            this.settings.set('ecoMode', ecoModeChk.checked)
+        );
         autoRotateChk.addEventListener('change', () =>
             this.settings.set('autoRotate', autoRotateChk.checked)
         );
